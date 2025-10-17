@@ -6,3 +6,4 @@ edition = "2024"
 [dependencies]
 sdl3 = "0.15.1"
 sdl3-image-sys = "0.2.0"
+nalgebra = "0.34.1"

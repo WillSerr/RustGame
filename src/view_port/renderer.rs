@@ -1,8 +1,11 @@
 use sdl3::{
-    gpu::{Buffer, BufferBinding, BufferRegion, BufferUsageFlags, ColorTargetDescription, ColorTargetInfo, CompareOp, CopyPass, CullMode, DepthStencilState, DepthStencilTargetInfo, Device, FillMode, Filter, GraphicsPipeline, GraphicsPipelineTargetInfo, IndexElementSize, LoadOp, PrimitiveType, RasterizerState, RenderPass, SampleCount, Sampler, SamplerAddressMode, SamplerCreateInfo, SamplerMipmapMode, ShaderFormat, ShaderStage, StoreOp, Texture, TextureCreateInfo, TextureFormat, TextureRegion, TextureSamplerBinding, TextureTransferInfo, TextureType, TextureUsage, TransferBuffer, TransferBufferLocation, TransferBufferUsage, VertexAttribute, VertexBufferDescription, VertexElementFormat, VertexInputRate, VertexInputState
+    gpu::{Buffer, BufferBinding, BufferRegion, BufferUsageFlags, ColorTargetDescription, ColorTargetInfo, CommandBuffer, CompareOp, CopyPass, CullMode, DepthStencilState, DepthStencilTargetInfo, Device, FillMode, Filter, GraphicsPipeline, GraphicsPipelineTargetInfo, IndexElementSize, LoadOp, PrimitiveType, RasterizerState, RenderPass, SampleCount, Sampler, SamplerAddressMode, SamplerCreateInfo, SamplerMipmapMode, ShaderFormat, ShaderStage, StoreOp, Texture, TextureCreateInfo, TextureFormat, TextureRegion, TextureSamplerBinding, TextureTransferInfo, TextureType, TextureUsage, TransferBuffer, TransferBufferLocation, TransferBufferUsage, VertexAttribute, VertexBufferDescription, VertexElementFormat, VertexInputRate, VertexInputState
     
     }, pixels::Color, rect::Rect, video::Window, Error 
     };
+
+extern crate nalgebra as na;
+use na::{Matrix4};
 
 use super::texture_manager::TexureManager;
 
@@ -47,8 +50,10 @@ pub struct Vertex {
 pub struct RenderObject{
     pub vertex_buffer: Buffer,
     pub index_buffer: Buffer,
+    pub index_count: u32,
     pub texture_sampler: Sampler,
     pub texture_index: usize,
+    pub world_transform: na::Matrix4<f32>,
 }
 
 pub struct Renderer{
@@ -57,6 +62,12 @@ pub struct Renderer{
     texture_manager: TexureManager,
     depth_texture : Texture<'static>,
     pipeline : GraphicsPipeline,
+    view_matrix: Matrix4<f32>,
+}
+
+struct MatrixUniform{
+    pub transform: Matrix4<f32>,
+    pub view: Matrix4<f32>,
 }
 
 impl Renderer{
@@ -77,12 +88,13 @@ impl Renderer{
             .with_sample_count(SampleCount::NoMultiSampling)
             .with_format(TextureFormat::D16Unorm)
             .with_usage(TextureUsage::SAMPLER | TextureUsage::DEPTH_STENCIL_TARGET),
-            ).unwrap()
+            ).unwrap(),
+            view_matrix: Renderer::build_view_matrix(screen_width),
         }
         
     }
 
-    pub fn render(&mut self, gpu: &Device, window: &Window,render_objects : &Vec<RenderObject>) -> Result<(), Error>{        
+    pub fn render(&mut self, gpu: &Device, window: &Window,render_objects : &Vec<&RenderObject>) -> Result<(), Error>{        
         // The swapchain texture is basically the framebuffer corresponding to the drawable
         // area of a given window - note how we "wait" for it to come up
         //
@@ -116,7 +128,7 @@ impl Renderer{
 
             if render_objects.len() > 0 {
                 for objects in render_objects{
-                    self.draw_sprite(&render_pass, objects, 0, 0);
+                    self.draw_sprite(&render_pass, &command_buffer, objects, 0, 0);
                 }
             }
 
@@ -132,8 +144,8 @@ impl Renderer{
         Ok(())
     }
 
-    pub fn draw_sprite(&self, render_pass: &RenderPass, render_object: &RenderObject,x_pos: i32, y_pos: i32){
-        // Now we'll bind our buffers/sampler and draw the cube
+    pub fn draw_sprite(&self, render_pass: &RenderPass, command_buffer: &CommandBuffer, render_object: &RenderObject,x_pos: i32, y_pos: i32){
+        // Now we'll bind our buffers/sampler and draw the sprite
             render_pass.bind_vertex_buffers(
                 0,
                 &[BufferBinding::new()
@@ -147,7 +159,6 @@ impl Renderer{
                 IndexElementSize::_16BIT,
             );
             
-            //This is doing nothing
             render_pass.bind_fragment_samplers(
                 0,
                 &[TextureSamplerBinding::new()
@@ -155,9 +166,16 @@ impl Renderer{
                     .with_sampler(&render_object.texture_sampler)],
             );
 
+            
+            // Set world uniform for our shader
+            command_buffer.push_vertex_uniform_data(0, &MatrixUniform{
+                transform: render_object.world_transform,
+                view: self.view_matrix,
+            });
+
             ////----HARD CODED INDEX COUNT REMEMBER TO CHANGE LATER----
             // Finally, draw the object
-            render_pass.draw_indexed_primitives(6, 1, 0, 0, 0);
+            render_pass.draw_indexed_primitives(render_object.index_count, 1, 0, 0, 0);
     }
 
     pub fn init_render_object(&mut self, gpu: &Device) -> Result<RenderObject, Error>{
@@ -170,6 +188,7 @@ impl Renderer{
             .with_size(vertices_len_bytes.max(indices_len_bytes) as u32)
             .with_usage(TransferBufferUsage::UPLOAD)
             .build()?;
+        let index_count : u32 = INDICES.len().try_into().unwrap();
 
         // Start a copy pass in order to transfer data to the GPU
         let copy_commands = gpu.acquire_command_buffer()?;
@@ -196,7 +215,7 @@ impl Renderer{
 
         // Load up a texture to put on the object
         // let texture_index = self.texture_manager.load_texture(gpu, "./assets/default_texture.bmp",&copy_pass)?;
-        let texture_index = self.texture_manager.load_texture(gpu, "./assets/texture.bmp",&copy_pass)?;
+        let texture_index = self.texture_manager.load_texture(gpu, "./assets/default_texture.bmp",&copy_pass)?;
         
         //println!("tex_idx: {}",texture_index);
         // And configure a sampler for pulling pixels from that texture in the frag shader
@@ -216,8 +235,10 @@ impl Renderer{
 
         Ok(RenderObject { vertex_buffer: vertex_buffer, 
             index_buffer: index_buffer, 
+            index_count: index_count,
             texture_sampler: texture_sampler,
             texture_index: texture_index,
+            world_transform : na::Matrix4::identity(),
             })
     }
 
@@ -355,4 +376,15 @@ impl Renderer{
         Ok(pipeline)
     }
 
+    fn build_view_matrix(window_size: u32) -> Matrix4<f32>{
+        let window_size_float: f32 = window_size as f32;
+        return Matrix4::new(
+        2.0 / (window_size_float), 0.0, 0.0, 0.0,
+        0.0, 2.0 / (window_size_float), 0.0, 0.0,
+        // Note: this is assuming a clip space of [0, 1] on the Z axis, which is what Vulkan uses.
+        // In OpenGL, the clip space is [-1, 1] and this would need to be adjusted.
+        0.0, 0.0, -1.0 / 2.0, 0.0,
+        0.0, 0.0, 1.0 / 2.0, 1.0
+        );
+    }
 }

@@ -1,6 +1,7 @@
 extern crate sdl3;
+extern crate nalgebra as na;
 mod view_port;
-
+mod objects;
 
 use sdl3::gpu::{SampleCount, ShaderFormat, TextureCreateInfo, TextureFormat, TextureType, TextureUsage, VertexBufferDescription, VertexInputState};
 use sdl3::rect::Rect;
@@ -9,8 +10,12 @@ use sdl3::event::Event;
 use sdl3::keyboard::Keycode;
 use sdl3::render::Canvas;
 use std::time::Duration;
-use view_port::renderer::Renderer;
-use view_port::renderer::RenderObject;
+
+use na::{Vector3,Matrix4};
+
+use view_port::renderer::{Renderer, RenderObject};
+
+use objects::game_object::GameObject;
 
 const WINDOW_SIZE: u32 = 800;
 
@@ -33,12 +38,20 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>>{
 
     let mut game_renderer: Renderer = Renderer::new(WINDOW_SIZE, WINDOW_SIZE, screen_color,&gpu,&window);
 
-    let mut render_objects: Vec<RenderObject> = vec![game_renderer.init_render_object(&gpu).unwrap()];
+    //Game objects init
+    let mut game_objects: Vec<GameObject> = vec![GameObject::new(game_renderer.init_render_object(&gpu).unwrap())];
 
-    render_objects.push(game_renderer.init_render_object(&gpu).unwrap());
+    game_objects.push(GameObject::new(game_renderer.init_render_object(&gpu).unwrap()));
+
+    let mut translation: na::Vector3<f32> = na::Vector3::new(-400.0,-0.0,0.0);
+    game_objects[0].set_position(translation);
+    translation.x = 20.0;
+    translation.y = -400.0;
+    game_objects[1].set_position(translation);
 
     let mut event_pump = sdl_context.event_pump().unwrap();
 
+    // let mut render_objects: Vec<&RenderObject> = Vec::new();
 
     'running: loop {
         for event in event_pump.poll_iter() {
@@ -52,8 +65,23 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>>{
             }
         }
 
-        // The rest of the game loop goes here...
         
+        // The rest of the game loop goes here...
+        for object in &mut game_objects{
+            //If visible add to render list
+            object.update();
+        }
+        
+
+        // Render loop
+
+        let mut render_objects: Vec<&RenderObject> = Vec::new(); //not a good way to do this but a safe Rust way
+
+        for object in &mut game_objects{
+            //If visible add to render list
+            render_objects.push(object.get_render_info());
+        }
+
         match game_renderer.render(&gpu,&window,&render_objects) {
             Ok(()) => {},
             Err(_) =>break 'running
