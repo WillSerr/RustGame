@@ -8,6 +8,7 @@ extern crate nalgebra as na;
 use na::{Matrix4};
 
 use super::texture_manager::TexureManager;
+use super::camera::Camera;
 
 const VERTICES : &[Vertex] = &[    
     Vertex{
@@ -56,19 +57,20 @@ pub struct RenderObject{
     pub world_transform: na::Matrix4<f32>,
 }
 
+struct MatrixUniform{
+    pub transform: Matrix4<f32>,
+    pub view: Matrix4<f32>,
+}
+
 pub struct Renderer{
     pub screen_area: Rect,
     pub screen_color: Color,
     texture_manager: TexureManager,
     depth_texture : Texture<'static>,
     pipeline : GraphicsPipeline,
-    view_matrix: Matrix4<f32>,
+    pub camera : Camera
 }
 
-struct MatrixUniform{
-    pub transform: Matrix4<f32>,
-    pub view: Matrix4<f32>,
-}
 
 impl Renderer{
     pub fn new(screen_width: u32,screen_height: u32, clear_color: Color, gpu : &Device, window: &Window) -> Self{
@@ -89,7 +91,7 @@ impl Renderer{
             .with_format(TextureFormat::D16Unorm)
             .with_usage(TextureUsage::SAMPLER | TextureUsage::DEPTH_STENCIL_TARGET),
             ).unwrap(),
-            view_matrix: Renderer::build_view_matrix(screen_width),
+            camera : Camera::new(screen_width, screen_height),
         }
         
     }
@@ -170,7 +172,7 @@ impl Renderer{
             // Set world uniform for our shader
             command_buffer.push_vertex_uniform_data(0, &MatrixUniform{
                 transform: render_object.world_transform,
-                view: self.view_matrix,
+                view: self.camera.get_view_matrix(),
             });
 
             ////----HARD CODED INDEX COUNT REMEMBER TO CHANGE LATER----
@@ -377,14 +379,15 @@ impl Renderer{
     }
 
     fn build_view_matrix(window_size: u32) -> Matrix4<f32>{
+        //Orthographic View Matrix
         let window_size_float: f32 = window_size as f32;
-        return Matrix4::new(
+                return Matrix4::new(
         2.0 / (window_size_float), 0.0, 0.0, 0.0,
         0.0, 2.0 / (window_size_float), 0.0, 0.0,
         // Note: this is assuming a clip space of [0, 1] on the Z axis, which is what Vulkan uses.
         // In OpenGL, the clip space is [-1, 1] and this would need to be adjusted.
-        0.0, 0.0, -1.0 / 2.0, 0.0,
-        0.0, 0.0, 1.0 / 2.0, 1.0
+        0.0, 0.0, -2.0 / 1.0, 0.0,
+        0.0, 0.0, -1.0 / 1.0, 1.0
         );
     }
 }

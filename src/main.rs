@@ -17,6 +17,8 @@ use view_port::renderer::{Renderer, RenderObject};
 
 use objects::game_object::GameObject;
 
+use crate::view_port::renderer;
+
 const WINDOW_SIZE: u32 = 800;
 
 pub fn main() -> Result<(), Box<dyn std::error::Error>>{
@@ -46,8 +48,16 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>>{
     let mut translation: na::Vector3<f32> = na::Vector3::new(-400.0,-0.0,0.0);
     game_objects[0].set_position(translation);
     translation.x = 20.0;
-    translation.y = -400.0;
+    translation.y = -200.0;
     game_objects[1].set_position(translation);
+    game_objects[1].set_rotation(45.0);
+
+
+    game_objects.push(GameObject::new(game_renderer.init_render_object(&gpu).unwrap()));
+    translation.x = 0.0;
+    translation.y = 0.0;
+    game_objects[2].set_position(translation);
+    game_objects[2].set_rotation(0.0);
 
     let mut event_pump = sdl_context.event_pump().unwrap();
 
@@ -72,6 +82,10 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>>{
             object.update();
         }
         
+        let (mut new_x,mut new_y) =  game_renderer.camera.get_position();
+        new_x += 0.001;
+        //new_y += 0.01;
+        game_renderer.camera.set_position(new_x, new_y);
 
         // Render loop
 
