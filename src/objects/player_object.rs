@@ -70,132 +70,7 @@ impl PlayerObject{
         }
     }
 
-    const fn lerp(a: f32, b: f32, k: f32) -> f32{
-        a * (1.0 - k) + b * k
-    }
-
-    fn apply_hard_drag(&mut self, delta_time: f32, angle_of_attack: f32, normal_velocity : Vector2<f32>)
-    {
-                        println!("angle of attack: {}",angle_of_attack - 0.01745 );
-            let cl: f32; //Lift coefficient
-            {
-                let clo = (2.0 * PI * 0.5 * (angle_of_attack*2.0).sin());//<- 2x frequency was a me addition, slowed lift when nearing perpendicular
-                cl = clo / (1.0 + clo.abs() / PI * 1.0); //Clo / (1 + Clo / (pi * AR) ); 
-            }
-            let lift_mag = cl  * 1.229 * 0.5  * (self.velocity.magnitude())*(self.velocity.magnitude());//(2.0 * PI * angle_of_attack.cos().abs() * 2.0 * 1.229 * 0.5 * (self.velocity.magnitude())*(self.velocity.magnitude()));
-                // println!("lift: {}",lift_mag);
-
-            let cd = 1.28 * angle_of_attack.sin().abs() + (cl * cl) / (0.7 * PI * 1.0); //Cd0 + Cl^2 / (.7 * pi * AR) ) Drag coefficient
-            let drag_mag = cd * 1.229 * (self.velocity.magnitude())*(self.velocity.magnitude()); //Cd * A* r * 0.5(v^2)
-            let mut drag_force : Vector2<f32> = Vector2::new(0.0,0.0);
-            drag_force.x = -1.0 * normal_velocity.x * drag_mag; // drag dependent on player rotation
-            drag_force.y = -1.0 * normal_velocity.y * drag_mag; // drag dependent on player rotation
-                // println!("Drag: {}",drag_mag);
-                
-            let lift: Vector2<f32> = Vector2::new(
-                -1.0 * normal_velocity.y * lift_mag, //<- trial and error negative here, seems to work
-                normal_velocity.x * lift_mag);
-                // println!("Lift: {},{} , Drag: {},{}",lift.x,lift.y, drag_force.x,drag_force.y);
-            
-            //F= ma
-            //a = F/m
-            //dV/dT = f/m
-            //dV = (F/m) * dt
-            let dvx = ((drag_force.x + lift.x )/5.0) * delta_time; // unnecessarily complex, might not work, 5 gram mass(because paper)
-            self.velocity.x += dvx;
-
-            let dvy = ((drag_force.y + lift.y ) /5.0 - 9.8)  * delta_time; 
-            self.velocity.y += dvy;
-    }
-
-    fn apply_simple_drag(&mut self, delta_time: f32, angle_of_attack: f32, forward : Vector2<f32>)
-    {     
-        let arbitrary_scalar: f32 = 2.0;
-            //println!("angle of attack: {}",angle_of_attack / 0.01745 );
-            // let cl: f32; //Lift coefficient
-            // {
-            //     let clo = (2.0 * PI * 0.5 * (angle_of_attack*2.0).sin());//<- 2x frequency was a me addition, slowed lift when nearing perpendicular
-            //     cl = clo / (1.0 + clo.abs() / PI * 1.0); //Clo / (1 + Clo / (pi * AR) ); 
-            // }
-            // let lift_mag = cl  * 1.229 * 0.5  * (self.velocity.magnitude())*(self.velocity.magnitude());//(2.0 * PI * angle_of_attack.cos().abs() * 2.0 * 1.229 * 0.5 * (self.velocity.magnitude())*(self.velocity.magnitude()));
-
-
-            // let cd = 1.28 * angle_of_attack.sin().abs() + (cl * cl) / (0.7 * PI * 1.0); //Cd0 + Cl^2 / (.7 * pi * AR) ) Drag coefficient
-            let drag_mag = angle_of_attack.sin().abs() * (self.velocity.magnitude())*(self.velocity.magnitude()); //Cd * A* r * 0.5(v^2)
-            let mut drag_force : Vector2<f32> = Vector2::new(0.0,0.0);
-            drag_force.x = -1.0 * self.velocity.x.abs(); // drag dependent on player rotation
-            drag_force.y = -1.0 * self.velocity.y.abs(); // drag dependent on player rotation
-
-            drag_force.x = -0.0; // drag dependent on player rotation
-            drag_force.y = -0.0; // drag dependent on player rotation
-            // let lift: Vector2<f32> = Vector2::new(
-            //     0.0 - angle_of_attack.sin() * drag_force.y, 
-            //     (angle_of_attack.cos().abs() * 9.8) - drag_force.x);
-            
-            // let mut lift: Vector2<f32> = Vector2::new(
-            //     (self.object.get_rotation()* 0.01745).sin() * self.velocity.x.abs(), 
-            //     -(self.object.get_rotation()* 0.01745).sin() * self.velocity.x.abs());
-
-            //     //lift.x += -(self.object.get_rotation()* 0.01745).cos() * self.velocity.y.abs();
-            //     lift.y += (self.object.get_rotation()* 0.01745).cos().abs() * -1.0 * self.velocity.y.abs();
-
-            //     println!("\n\n\n\n\n\n\n\n\nliftx: {}",lift.x );
-            //     println!("lifty: {}",lift.y );
-            // let dvx = (lift.x + drag_force.x) * delta_time; // unnecessarily complex, might not work, 5 gram mass(because paper)
-            // self.velocity.x += dvx;
-
-            // let dvy = (lift.y + drag_force.y - 9.8)  * delta_time; 
-            // self.velocity.y += dvy;
-
-            let mut lift: Vector2<f32> = Vector2::new(
-                PlayerObject::lerp(-0.01,-2.0,(self.object.get_rotation()* 0.01745).cos().abs()) * self.velocity.y, //Thrust
-                PlayerObject::lerp(-5.0,-0.01,(self.object.get_rotation()* 0.01745).sin().abs()) * self.velocity.y);   // -Weight
-                assert!(!lift.x.is_nan(), "Lift.x Nan, self.object.get_rotation(): {}, self.object.get_rotation()* 0.01745).cos().abs(){}, self.velocity.y{}",
-                self.object.get_rotation(),(self.object.get_rotation()* 0.01745).cos().abs(),self.velocity.y);
-
-                //lift.x = 0.0;
-                //lift.y = 0.0;
-
-                let Wind_force = 1.1 * self.velocity.x;
-                //WsinO = mgSinO //paralel force, m=? g/W = force/windResist 0=90-angle of attack
-                //lift.x += forward.x * Wind_force * angle_of_attack.cos();
-                assert!(!lift.x.is_nan(), "Lift.x Nan, forward.x: {}, Wind_force{}, AOT.cos(){}",forward.x,Wind_force,angle_of_attack.cos());
-                //lift.y += forward.y * Wind_force * angle_of_attack.cos();
-
-                //lift.x += forward.x * Wind_force * angle_of_attack.sin().abs();
-                assert!(!lift.x.is_nan(), "Lift.x Nan, forward.x: {}, Wind_force{}, AOT.sin(){}",forward.x,Wind_force,angle_of_attack.sin());
-                //lift.y += forward.y * Wind_force * angle_of_attack.sin().abs();
-                // lift.x += forward.x * Wind_force * angle_of_attack.sin();
-                // lift.y += forward.y * Wind_force * angle_of_attack.sin();
-
-                drag_force.x = -self.velocity.x; // drag dependent on player rotation
-                drag_force.y = -0.0; // drag dependent on player rotation
-
-                //lift.x += -(self.object.get_rotation()* 0.01745).cos() * self.velocity.y.abs();
-                //lift.y += (self.object.get_rotation()* 0.01745).cos().abs() * -1.0 * self.velocity.y.abs();
-
-                println!("\n\n\n\n\n\n\n\n\nliftx: {}",lift.x );
-                println!("lifty: {}",lift.y );
-                println!("AOT: {}",angle_of_attack / 0.01745  );
-                println!("AOT abs: {}",angle_of_attack.sin().abs() );
-            let dvx = (lift.x + drag_force.x) * delta_time; // unnecessarily complex, might not work, 5 gram mass(because paper)
-            self.velocity.x += dvx;
-
-            let dvy = (lift.y + drag_force.y - 9.8)  * delta_time; 
-            self.velocity.y += dvy;
-
-            //F= ma
-            //a = F/m
-            //dV/dT = f/m
-            //dV = (F/m) * dt
-            // let dvx = (drag_force.x  + lift.x) * delta_time; // unnecessarily complex, might not work, 5 gram mass(because paper)
-            // self.velocity.x += dvx;
-
-            // let dvy = (drag_force.x + lift.y - 9.8) * delta_time; 
-            // self.velocity.y += dvy;
-    }
-
-    fn apply_super_simple_drag(&mut self, delta_time: f32, angle_of_attack: f32, normal_velocity : Vector2<f32>, forward : Vector2<f32>)
+    fn apply_gliding_force(&mut self, delta_time: f32, angle_of_attack: f32, normal_velocity : Vector2<f32>, forward : Vector2<f32>)
     {
         let wind_force = 100.0;
         let mut drag_force : Vector2<f32> = Vector2::new(0.0,0.0);
@@ -212,10 +87,10 @@ impl PlayerObject{
             lift.x += (forward.x - normal_velocity.x) * self.velocity.magnitude();
             lift.y += (forward.y - normal_velocity.y) * self.velocity.magnitude();
 
-            println!("\n\n\n\n\n\n\n\n\nliftx: {}",lift.x );
-            println!("lifty: {}",lift.y );
-            println!("AOT: {}",angle_of_attack / 0.01745  );
-            println!("AOT abs: {}",angle_of_attack.sin().abs() );
+            // println!("\n\n\n\n\n\n\n\n\nliftx: {}",lift.x );
+            // println!("lifty: {}",lift.y );
+            // println!("AOT: {}",angle_of_attack / 0.01745  );
+            // println!("AOT abs: {}",angle_of_attack.sin().abs() );
 
         let dvx = (lift.x + drag_force.x) * delta_time;
         self.velocity.x += dvx;
@@ -240,13 +115,17 @@ impl PlayerObject{
                 self.velocity.y = 0.0;
             }
 
-                // println!("V: {},{}",self.velocity.x,self.velocity.y);
-                // println!("Speed: {}",self.velocity.magnitude());
+
             let normal_velocity = self.velocity.xy().normalize();
             let forward = Vector2::new((self.object.get_rotation()* 0.01745).cos(),(self.object.get_rotation()* -0.01745).sin()).normalize();
-            assert!(forward.magnitude() == 1.0, "Forward mag: {}", forward.magnitude());
+            
+            //----REMOVE ME---- for tracking rare crash mentioned below
+            assert!(forward.magnitude() == 1.0, "Forward Vector not Normalized, forward.mag: {}", forward.magnitude());
+            
             let dot_product = normal_velocity.dot(&forward).max(-1.0).min(1.0); //.dot() can but shouldnt output outside of these bounds
             let mut angle_of_attack : f32 = (dot_product).acos().cos().acos() * (Vector3::new(normal_velocity.x,normal_velocity.y,0.0).cross(&Vector3::new(forward.x,forward.y,0.0)).z).signum();
+            
+            //----REMOVE ME---- This causes a very rare crash, should be fixed now with bounding the dot product
             assert!(!angle_of_attack.is_nan(), "AOT NAN: dotprod{}, crossprod{}, acos.cos.acos {}, acos {}",
             dot_product,  Vector3::new(normal_velocity.x,normal_velocity.y,0.0).cross(&Vector3::new(forward.x,forward.y,0.0)).z,
             (dot_product).acos().cos().acos(),(dot_product).acos());
@@ -256,9 +135,8 @@ impl PlayerObject{
             }
             assert!(!angle_of_attack.is_nan(), "AOT Nan:{}", angle_of_attack);
 
-            //self.apply_hard_drag(delta_time,angle_of_attack, normal_velocity);
-            //self.apply_simple_drag(delta_time,angle_of_attack, forward);
-            self.apply_super_simple_drag(delta_time,angle_of_attack,normal_velocity, forward);
+
+            self.apply_gliding_force(delta_time,angle_of_attack,normal_velocity, forward);
 
             //self.rotation_rate += ((self.velocity.xy().normalize().dot(&forward)).acos().cos().acos() / 0.01745) * (drag_mag + lift_mag)* delta_time ;
                 // println!("dF: {}, {}",lift.x + drag_force.x,lift.y + drag_force.y);
