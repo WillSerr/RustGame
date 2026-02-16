@@ -14,5 +14,8 @@ layout (location = 1) in vec3 frag_color;
 layout (location = 0) out vec4 final_color;
 
 void main() {
-	final_color = texture(tex_sampler, tex_coord) * vec4(frag_color, 1.0);
+	final_color = texture(tex_sampler, tex_coord);// * vec4(frag_color, 1.0);
+	if(final_color.a < 0.01){
+		discard;
+	}
 }

@@ -1,7 +1,7 @@
 use sdl3::{
-    gpu::{Buffer, BufferBinding, BufferRegion, BufferUsageFlags, ColorTargetDescription, ColorTargetInfo, CommandBuffer, CompareOp, CopyPass, CullMode, DepthStencilState, DepthStencilTargetInfo, Device, FillMode, Filter, GraphicsPipeline, GraphicsPipelineTargetInfo, IndexElementSize, LoadOp, PrimitiveType, RasterizerState, RenderPass, SampleCount, Sampler, SamplerAddressMode, SamplerCreateInfo, SamplerMipmapMode, ShaderFormat, ShaderStage, StoreOp, Texture, TextureCreateInfo, TextureFormat, TextureRegion, TextureSamplerBinding, TextureTransferInfo, TextureType, TextureUsage, TransferBuffer, TransferBufferLocation, TransferBufferUsage, VertexAttribute, VertexBufferDescription, VertexElementFormat, VertexInputRate, VertexInputState
+    Error, gpu::{Buffer, BufferBinding, BufferRegion, BufferUsageFlags, ColorTargetDescription, ColorTargetInfo, CommandBuffer, CompareOp, CopyPass, CullMode, DepthStencilState, DepthStencilTargetInfo, Device, FillMode, Filter, GraphicsPipeline, GraphicsPipelineTargetInfo, IndexElementSize, LoadOp, PrimitiveType, RasterizerState, RenderPass, SampleCount, Sampler, SamplerAddressMode, SamplerCreateInfo, SamplerMipmapMode, ShaderFormat, ShaderStage, StoreOp, Texture, TextureCreateInfo, TextureFormat, TextureRegion, TextureSamplerBinding, TextureTransferInfo, TextureType, TextureUsage, TransferBuffer, TransferBufferLocation, TransferBufferUsage, VertexAttribute, VertexBufferDescription, VertexElementFormat, VertexInputRate, VertexInputState
     
-    }, pixels::Color, rect::Rect, video::Window, Error 
+    }, pixels::Color, rect::Rect, sys::render::SDL_SetRenderDrawBlendMode, video::Window 
     };
 
 extern crate nalgebra as na;
@@ -16,25 +16,25 @@ const VERTICES : &[Vertex] = &[
     y: 0.0,
     z: 0.0,
     u: 0.0,
-    v: 0.0,},
+    v: 1.0,},
     Vertex{
     x: 0.0,
     y: 1.0,
     z: 0.0,
     u: 0.0,
-    v: 1.0,},
+    v: 0.0,},
     Vertex{
     x: 1.0,
     y: 0.0,
     z: 0.0,
     u: 1.0,
-    v: 0.0,},
+    v: 1.0,},
     Vertex{
     x: 1.0,
     y: 1.0,
     z: 0.0,
     u: 1.0,
-    v: 1.0,}];
+    v: 0.0,}];
 const INDICES : &[u16] = &[0,2,1, 3,1,2];
 
 
@@ -54,6 +54,8 @@ pub struct RenderObject{
     pub index_count: u32,
     pub texture_sampler: Sampler,
     pub texture_index: usize,
+    pub texture_width: u32,
+    pub texture_height: u32,
     pub world_transform: na::Matrix4<f32>,
 }
 
@@ -127,7 +129,6 @@ impl Renderer{
             // Screen is cleared below due to the color target info
             render_pass.bind_graphics_pipeline(&self.pipeline);
 
-
             if render_objects.len() > 0 {
                 for objects in render_objects{
                     self.draw_sprite(&render_pass, &command_buffer, objects, 0, 0);
@@ -174,13 +175,17 @@ impl Renderer{
                 transform: render_object.world_transform,
                 view: self.camera.get_view_matrix(),
             });
-
+            
             ////----HARD CODED INDEX COUNT REMEMBER TO CHANGE LATER----
             // Finally, draw the object
             render_pass.draw_indexed_primitives(render_object.index_count, 1, 0, 0, 0);
     }
 
-    pub fn init_render_object(&mut self, gpu: &Device) -> Result<RenderObject, Error>{
+    pub fn init_default_render_object(&mut self, gpu: &Device) -> Result<RenderObject, Error>{
+        return self.init_render_object(gpu,"./assets/default_texture.bmp");
+    }
+
+    pub fn init_render_object(&mut self, gpu: &Device, file_path: &str) -> Result<RenderObject, Error>{
         // Create a transfer buffer that is large enough to hold either
         // our vertices or indices since we will be transferring both with it.
         let vertices_len_bytes = std::mem::size_of_val(VERTICES);
@@ -217,7 +222,7 @@ impl Renderer{
 
         // Load up a texture to put on the object
         // let texture_index = self.texture_manager.load_texture(gpu, "./assets/default_texture.bmp",&copy_pass)?;
-        let texture_index = self.texture_manager.load_texture(gpu, "./assets/default_texture.bmp",&copy_pass)?;
+        let texture_index = self.texture_manager.load_texture(gpu, file_path,&copy_pass)?;
         
         //println!("tex_idx: {}",texture_index);
         // And configure a sampler for pulling pixels from that texture in the frag shader
@@ -240,6 +245,8 @@ impl Renderer{
             index_count: index_count,
             texture_sampler: texture_sampler,
             texture_index: texture_index,
+            texture_width: self.texture_manager.texture_table[texture_index].width(),
+            texture_height: self.texture_manager.texture_table[texture_index].height(),
             world_transform : na::Matrix4::identity(),
             })
     }

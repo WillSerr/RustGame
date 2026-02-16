@@ -41,11 +41,21 @@ impl TexureManager{
         let image = Surface::load_bmp(Path::new(&file_path))?;
         let image_size = image.size();
         let size_bytes = image.pixel_format().bytes_per_pixel() as u32 * image_size.0 * image_size.1;
-
+        
+        let test = gpu.create_texture(
+            TextureCreateInfo::new()
+                .with_format(TextureFormat::B8g8r8a8Unorm)
+                .with_type(TextureType::_2D)
+                .with_width(image_size.0)
+                .with_height(image_size.1)
+                .with_layer_count_or_depth(1)
+                .with_num_levels(1)
+                .with_usage(TextureUsage::SAMPLER),
+        ).unwrap();
 
         self.texture_table.push( gpu.create_texture(
             TextureCreateInfo::new()
-                .with_format(TextureFormat::R8g8b8a8Unorm)
+                .with_format(TextureFormat::B8g8r8a8Unorm)
                 .with_type(TextureType::_2D)
                 .with_width(image_size.0)
                 .with_height(image_size.1)

@@ -28,9 +28,15 @@ impl Camera{
         return (self.position.x,self.position.y);
     }
 
-    pub fn set_position(&mut self, x_pos: f32, y_pos: f32){
-        self.position.x = x_pos;
-        self.position.y = y_pos;
+    // pub fn set_position(&mut self, x_pos: f32, y_pos: f32){
+    //     self.position.x = x_pos;
+    //     self.position.y = y_pos;
+
+    //     self.rebuild_view_matrix();
+    // }
+
+    pub fn set_position(&mut self, pos : Vector3<f32>){
+        self.position = pos;
 
         self.rebuild_view_matrix();
     }
@@ -42,7 +48,8 @@ impl Camera{
     pub fn rebuild_view_matrix(&mut self){
         let shift: Vector3<f32> = Vector3::new(-self.position.x,-self.position.y,0.0);
 
-        self.view_matrix = self.projection_matrix.append_translation(&shift);
+        //self.view_matrix = self.projection_matrix.append_translation(&shift);
+        self.view_matrix = self.projection_matrix.prepend_translation(&shift);
     }
 
     fn build_ortho_projection_matrix(screen_width: u32,screen_height: u32) -> Matrix4<f32>{
