@@ -48,6 +48,7 @@ pub struct Vertex {
     pub v: f32,
 }
 
+#[derive(Clone)]
 pub struct RenderObject{
     pub vertex_buffer: Buffer,
     pub index_buffer: Buffer,
@@ -186,16 +187,21 @@ impl Renderer{
     }
 
     pub fn init_render_object(&mut self, gpu: &Device, file_path: &str) -> Result<RenderObject, Error>{
+        //The default square/sprite render object
+        self.init_polygon_render_object(gpu,file_path, VERTICES, INDICES)
+    }
+
+    pub fn init_polygon_render_object(&mut self, gpu: &Device, file_path: &str, vertices: &[Vertex], indices: &[u16]) -> Result<RenderObject, Error>{
         // Create a transfer buffer that is large enough to hold either
         // our vertices or indices since we will be transferring both with it.
-        let vertices_len_bytes = std::mem::size_of_val(VERTICES);
-        let indices_len_bytes = std::mem::size_of_val(INDICES);
+        let vertices_len_bytes = std::mem::size_of_val(vertices);
+        let indices_len_bytes = std::mem::size_of_val(indices);
         let transfer_buffer = gpu
             .create_transfer_buffer()
             .with_size(vertices_len_bytes.max(indices_len_bytes) as u32)
             .with_usage(TransferBufferUsage::UPLOAD)
             .build()?;
-        let index_count : u32 = INDICES.len().try_into().unwrap();
+        let index_count : u32 = indices.len().try_into().unwrap();
 
         // Start a copy pass in order to transfer data to the GPU
         let copy_commands = gpu.acquire_command_buffer()?;
@@ -207,14 +213,14 @@ impl Renderer{
             &transfer_buffer,
             &copy_pass,
             BufferUsageFlags::VERTEX,
-            VERTICES,
+            vertices,
         )?;
         let index_buffer = Renderer::create_buffer_with_data(
             &gpu,
             &transfer_buffer,
             &copy_pass,
             BufferUsageFlags::INDEX,
-            INDICES,
+            indices,
         )?;
 
         // We're done with the transfer buffer now, so release it.

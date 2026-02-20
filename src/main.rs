@@ -11,14 +11,14 @@ use sdl3::keyboard::{Keycode,KeyboardState,Scancode};
 use sdl3::timer::ticks;
 use std::time::Duration;
 
-use na::{Vector3,Matrix4};
+use na::{Matrix4, Vector2, Vector3};
 
 use view_port::renderer::{Renderer, RenderObject};
 
 use objects::game_object::GameObject;
 use objects::player_object::PlayerObject;
 
-use crate::objects::player_object;
+use crate::objects::{player_object, terrain_object};
 use crate::objects::player_launcher;
 use crate::view_port::renderer;
 
@@ -69,6 +69,9 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>>{
     background_objects[5].set_position(na::Vector3::new(800.0,800.0,-0.0005));
     background_objects[5].set_local_origin(na::Vector3::new(0.0,0.0,0.0));
 
+    //Terrain objects init
+    let mut terrain = terrain_object::TerrainObject::new(&mut game_renderer,&gpu);
+
     //Game objects init
     let mut game_objects: Vec<GameObject> = vec![GameObject::new(game_renderer.init_default_render_object(&gpu).unwrap())];
 
@@ -90,6 +93,7 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>>{
     translation.y = 200.0;
     game_objects[2].set_position(translation);
     game_objects[2].set_rotation(0.0);
+    game_objects[2].set_local_origin(Vector3::new(0.5,0.5,0.0));
 
     game_objects.push(GameObject::new(game_renderer.init_render_object(&gpu, "./assets/green_box.bmp").unwrap()));
         game_objects[3].set_position(translation);
@@ -136,13 +140,13 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>>{
             player_object.activate();
         }
         player_object.handle_input(&key_states, delta_time);
-        //let delta_time: f32 = 1.0; //TODO: Placeholder
 
         
         // The rest of the game loop goes here...
         
         player_object.update(delta_time);
         player_launcher.update(delta_time);
+        terrain.update(player_object.get_position().x ,&mut game_renderer, &gpu, delta_time);
 
         for object in &mut game_objects{
             //Update all objects, no plans for this to do anything as of yet
@@ -165,6 +169,13 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>>{
 
             translation.x -= 200.0;
             game_objects[4].set_position(translation);
+        }
+
+        //Ground height func debug
+        {
+            translation = player_object.get_position();
+            translation.y = terrain.get_height_at(player_object.get_position().x);
+            game_objects[2].set_position(translation);
         }
 
         //Background scrolling
@@ -216,6 +227,9 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>>{
         }
         render_objects.push(player_launcher.get_render_info());
         render_objects.push(player_object.get_render_info());
+
+        render_objects.push(terrain.get_render_info());
+        
 
         match game_renderer.render(&gpu,&window,&render_objects) {
             Ok(()) => {},

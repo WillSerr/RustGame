@@ -4,6 +4,7 @@ use na::{Matrix, Matrix4, Rotation, Rotation3, Vector3};
 
 use crate::view_port::renderer::{RenderObject};
 
+#[derive(Clone)]
 pub struct GameObject{
     position: Vector3<f32>,
     local_origin: Vector3<f32>,
@@ -88,5 +89,9 @@ impl GameObject{
         }
 
         &self.render_info
+    }
+
+    pub fn update_render_info(&mut self, render_info: RenderObject){
+        self.render_info = render_info;
     }
 }
