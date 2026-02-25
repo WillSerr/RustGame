@@ -1,6 +1,6 @@
 
 extern crate nalgebra as na;
-use na::{Matrix, Matrix4, Rotation, Rotation3, Vector3};
+use na::{Matrix, Matrix4, Point3, Rotation, Rotation3, Vector3};
 
 use crate::view_port::renderer::{RenderObject};
 
@@ -13,6 +13,7 @@ pub struct GameObject{
     width: u32,
     height: u32,
     render_info_outdated: bool,
+    scale: f32,
 }
 
 impl GameObject{
@@ -27,6 +28,7 @@ impl GameObject{
             width: width,
             height: height,
             render_info_outdated: true,
+            scale: 1.0,
         }
     }
 
@@ -61,6 +63,11 @@ impl GameObject{
         self.render_info_outdated = true;
     }
 
+    pub fn set_scale(&mut self, scale: f32){
+        self.scale = scale;
+        self.render_info_outdated = true;
+    }
+
     pub fn set_local_origin(&mut self, new_origin: Vector3<f32>){
         self.local_origin = new_origin;
         self.render_info_outdated = true;
@@ -73,9 +80,12 @@ impl GameObject{
             let local_transform_matrix: Matrix4<f32> = Matrix4::new_translation(
                 &self.local_origin.component_mul(&invert_pos));
 
-            let mut scale_matrix: Matrix4<f32> = Matrix4::identity();
-            scale_matrix.m11 = self.width as f32;
-            scale_matrix.m22 = self.height as f32;
+
+            let scalars = Vector3::new(self.width as f32 * self.scale,
+                                                                            self.height as f32* self.scale,
+                                                                            0.0);
+            let scale_matrix: Matrix4<f32> = Matrix4::new_nonuniform_scaling_wrt_point(&scalars,&Point3::new(0.0,0.0,0.0));
+
 
             let rotation_matrix: Matrix4<f32> = Matrix4::from_axis_angle(
                 &Vector3::z_axis(), //2D rotation axis faces the camera
@@ -93,5 +103,13 @@ impl GameObject{
 
     pub fn update_render_info(&mut self, render_info: RenderObject){
         self.render_info = render_info;
+    }
+
+    //Long name but needs to be descriptive
+    pub fn get_world_position_of_local_pos(&mut self, local_pos: Vector3<f32>) -> Vector3<f32>{
+        //Matrix transform only works on Points not vectors, so lots of converting here as I prefer working with vectors everywhere else
+        let local_point: Point3<f32> = Point3::new(local_pos.x, local_pos.y, local_pos.z);
+        let world_pos: Point3<f32> = self.get_render_info().world_transform.transform_point(&local_point);
+        return Vector3::new(world_pos.x,world_pos.y,world_pos.z)
     }
 }

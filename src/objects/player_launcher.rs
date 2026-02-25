@@ -98,4 +98,7 @@ impl PlayerLauncher{
         self.released
     }
 
+    pub fn set_height(&mut self, height: f32){
+        self.object.set_position(Vector3::new(0.0,height,0.0));
+    }
 }

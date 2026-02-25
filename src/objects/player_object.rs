@@ -1,6 +1,6 @@
 use std::f32::consts::PI;
 
-use crate::{objects::player_object, view_port::renderer::RenderObject};
+use crate::{objects::{player_object, terrain_object::TerrainObject}, view_port::renderer::RenderObject};
 use sdl3::keyboard::{KeyboardState,Scancode};
 use na::{Vector2,Vector3, VectorSlice3};
 
@@ -143,6 +143,83 @@ impl PlayerObject{
                 // println!("dF total: {}",lift.x + drag_force.x + lift.y + drag_force.y);
                 // println!("dV: {},{}",dvx,dvy);
 
+        }
+        
+    }
+
+    pub fn handle_terrain_collision(&mut self, terrain: &TerrainObject){
+        if !self.active {
+            return;
+        }
+        //28,112 is the bottom corner
+        let bottom_pos = self.object.get_world_position_of_local_pos(Vector3::new(28.0/256.0,
+                                                                                (128.0-112.0)/128.0,
+                                                                                0.0));
+        //28,45 is the back top corner
+        let top_pos = self.object.get_world_position_of_local_pos(Vector3::new(28.0/256.0,
+                                                                                (128.0-45.0)/128.0,
+                                                                                0.0));
+        //256,45 is the front nose
+        let front_pos = self.object.get_world_position_of_local_pos(Vector3::new(1.0,
+                                                                                (128.0-45.0)/128.0,
+                                                                                0.0));                                                    
+        
+        //distance from the ground at the front and back
+        let df: f32;
+        let db: f32;
+        if top_pos.y > bottom_pos.y {
+            //Rightside up collision checking
+            df = terrain.get_height_at(front_pos.x) - front_pos.y;
+            db = terrain.get_height_at(bottom_pos.x) - bottom_pos.y;
+        }
+        else{
+            //------------DOESNT WORK PROPERLY BUT IS STABLE-----
+            //Upside down collision checking
+            df = terrain.get_height_at(top_pos.x) - top_pos.y;
+            db = terrain.get_height_at(front_pos.x) - front_pos.y;
+        }
+
+        if(bottom_pos.y < terrain.get_height_at(bottom_pos.x)) && (front_pos.y < terrain.get_height_at(front_pos.x)) {
+
+            let d = (terrain.get_height_at(bottom_pos.x) - bottom_pos.y).max(terrain.get_height_at(front_pos.x) - front_pos.y);
+            self.object.add_position(Vector3::new(0.0,d,0.0));
+            self.velocity.y = 0.0;
+            return;
+        }
+
+        if bottom_pos.y < terrain.get_height_at(bottom_pos.x){
+            // angle between two points on a circle given the distance between them
+            // O = 2arcsin(d/2r)
+
+            let d = db;
+            let angle = 2.0 * (d / (2.0 * self.object.get_render_info().texture_width as f32)).asin();
+
+            //asin causes Nan if d is high enough
+            if !angle.is_nan(){
+                self.object.add_rotation(angle / 0.01745);
+            }
+            
+            //left over distance
+            let delta_d = (db - df.abs()).max(0.0);
+            self.object.add_position(Vector3::new(0.0,delta_d,0.0));
+
+            return;
+        }
+
+        if front_pos.y < terrain.get_height_at(front_pos.x){
+            
+            let d = df;
+            let angle = 2.0 * (d / (2.0 * self.object.get_render_info().texture_width as f32)).asin();
+
+            //asin causes Nan if d is high enough
+            if !angle.is_nan(){
+                self.object.add_rotation(-angle / 0.01745);
+            }
+
+            //left over distance
+            let delta_d = (df - db.abs()).max(0.0);
+            self.object.add_position(Vector3::new(0.0,delta_d,0.0));
+            return;
         }
         
     }

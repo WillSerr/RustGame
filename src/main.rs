@@ -44,11 +44,15 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>>{
 
     let mut game_renderer: Renderer = Renderer::new(WINDOW_SIZE, WINDOW_SIZE, screen_color,&gpu,&window);
 
+    //Terrain objects init
+    let mut terrain = terrain_object::TerrainObject::new(&mut game_renderer,&gpu);
+
     //Player character
     let mut player_object = player_object::PlayerObject::new(game_renderer.init_render_object(&gpu,"./assets/player_plane.bmp").unwrap());
     //Throwing Hand
     let mut player_launcher = player_launcher::PlayerLauncher::new(game_renderer.init_render_object(&gpu,"./assets/hand_hold.bmp").unwrap());
-
+    player_launcher.set_height(terrain.get_height_at(0.0));
+    
     //Background Objects init
     let mut background_objects: Vec<GameObject> = vec![GameObject::new(game_renderer.init_render_object(&gpu,"./assets/bkg_1.bmp").unwrap()),
     GameObject::new(game_renderer.init_render_object(&gpu,"./assets/bkg_2.bmp").unwrap()),
@@ -69,8 +73,7 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>>{
     background_objects[5].set_position(na::Vector3::new(800.0,800.0,-0.0005));
     background_objects[5].set_local_origin(na::Vector3::new(0.0,0.0,0.0));
 
-    //Terrain objects init
-    let mut terrain = terrain_object::TerrainObject::new(&mut game_renderer,&gpu);
+
 
     //Game objects init
     let mut game_objects: Vec<GameObject> = vec![GameObject::new(game_renderer.init_default_render_object(&gpu).unwrap())];
@@ -175,7 +178,9 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>>{
         {
             translation = player_object.get_position();
             translation.y = terrain.get_height_at(player_object.get_position().x);
+            game_objects[2].set_scale(0.1);
             game_objects[2].set_position(translation);
+            player_object.handle_terrain_collision(&terrain)
         }
 
         //Background scrolling

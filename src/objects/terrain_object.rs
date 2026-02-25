@@ -9,14 +9,17 @@ use sdl3::gpu::Device;
 use rand::prelude::*;
 
 
+
 use super::game_object::GameObject;
 
 const TERRAIN_ORIGIN: na::Vector3<f32> = Vector3::new(30.0,1.0,0.0);
+const VERT_COUNT: usize = 16;
+const INDICES_COUNT: usize = (VERT_COUNT - 2) * 3;
 
 pub struct TerrainObject{
     object: GameObject,
-    vertices : [Vertex; 8],
-    indices: [u16; 18],
+    vertices : [Vertex; VERT_COUNT],
+    indices: [u16; INDICES_COUNT],
     increment_length_mult: f32,
     rng: ThreadRng
 }
@@ -24,64 +27,47 @@ pub struct TerrainObject{
 impl TerrainObject{
     pub fn new(renderer: &mut Renderer, gpu : &Device) -> Self{
 
-        //TODO---- put this vertex initialising in a for loop + add more vertices along x axis
         // Get a local RNG:
         let mut rng = rand::rng();
-        let scalar = 15.0;
-        let vertices : [Vertex; 8] = [    
-            Vertex{ //B1
-            x: 0.0,
-            y: 0.0,
-            z: 0.0,
-            u: 1.0,
-            v: 1.0,},
-            Vertex{ //T1
-            x: 0.0,
-            y: 1.0,
-            z: 0.0,
-            u: 1.0,
-            v: 0.0,},
-            Vertex{ //B2
-            x: 1.0 * scalar,
-            y: 0.0,
-            z: 0.0,
-            u: 1.0,
-            v: 1.0,},
-            Vertex{ //T2
-            x: 1.0 * scalar,
-            y: 1.0 * rng.random_range(1.0..=4.0),
-            z: 0.0,
-            u: 1.0,
-            v: 0.0,},
-            Vertex{ //B3
-            x: 2.0 * scalar,
-            y: 0.0,
-            z: 0.0,
-            u: 1.0,
-            v: 1.0,},
-            Vertex{ //T3
-            x: 2.0 * scalar,
-            y: 1.0 * rng.random_range(1.0..=4.0),
-            z: 0.0,
-            u: 1.0,
-            v: 0.0,},
-            Vertex{ //B4
-            x: 3.0 * scalar,
-            y: 0.0,
-            z: 0.0,
-            u: 1.0,
-            v: 1.0,},
-            Vertex{ //T4
-            x: 3.0 * scalar,
-            y: 1.0 * rng.random_range(1.0..=4.0),
-            z: 0.0,
-            u: 1.0,
-            v: 0.0,}];
-        let indices : [u16; 18] = [0,2,1, 3,1,2, 
-                                2,4,3, 5,3,4, 
-                                4,6,5, 7,5,6];
+        let scalar = 15.0 / 2.0;
+        let mut vertices : [Vertex; VERT_COUNT] = [Vertex{ //B1
+                    x: 0.0,
+                    y: 0.0,
+                    z: 0.0,
+                    u: 0.0,
+                    v: 0.0,}; VERT_COUNT];
+        for i in (0..VERT_COUNT).step_by(2)  {
+            vertices[i] =Vertex{ //B1
+                    x: i as f32 * scalar,
+                    y: 0.0,
+                    z: 0.0,
+                    u: 1.0,
+                    v: 1.0,};
+            vertices[i+1] =Vertex{ //B1
+                    x: i as f32 * scalar,
+                    y: 1.0 * rng.random_range(1.0..=4.0),
+                    z: 0.0,
+                    u: 1.0,
+                    v: 1.0,};
+        }
 
-        let mut render_object = GameObject::new(renderer.init_polygon_render_object(gpu, "./assets/green_box.bmp", &vertices, &indices).unwrap());
+        let mut indices : [u16; INDICES_COUNT] = [0; INDICES_COUNT];
+        for i in (0..INDICES_COUNT).step_by(6)  {
+            let poly_idx = i / 3;
+            indices[i] = 0 + poly_idx as u16;
+            indices[i + 1] = 2 + poly_idx as u16;
+            indices[i + 2] = 1 + poly_idx as u16;
+
+            indices[i + 3] = 3 + poly_idx as u16;
+            indices[i + 4] = 1 + poly_idx as u16;
+            indices[i + 5] = 2 + poly_idx as u16;
+        }
+
+        //unnecessary
+        let verts = vertices;
+        let inds = indices;
+
+        let mut render_object = GameObject::new(renderer.init_polygon_render_object(gpu, "./assets/green_box.bmp", &verts, &inds).unwrap());
 
         render_object.set_position(Vector3::new(0.0,0.0,0.0));
 
